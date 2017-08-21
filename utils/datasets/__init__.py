@@ -12,5 +12,9 @@ def default_dir(name_id, dir_type='cache'):
 
     if dir_type == 'cache':
         return os.path.join(data_root, '_cache')
+    elif dir_type == 'stamp':
+        return os.path.join(data_root, '_stamp')
+    elif dir_type == 'data':
+        return os.path.join(data_root, 'd')
 
-    raise RuntimeError("Default directory not support dir_type %s" % dir_type)
+    raise RuntimeError("Default directory not support dir_type: %s" % dir_type)

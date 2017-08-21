@@ -25,12 +25,14 @@ import sys
 import os
 from os import path
 import random
-import tempfile
 import time
+import tarfile
+import zipfile
+import shutil
+from glob import glob
 
 import numpy as np
 from six.moves import urllib
-import tarfile
 
 from tensorflow.python.platform import gfile
 
@@ -42,86 +44,86 @@ def load_csv_with_header(filename,
                          target_dtype,
                          features_dtype,
                          target_column=-1):
-  """Load dataset from CSV file with a header row."""
-  with gfile.Open(filename) as csv_file:
-    data_file = csv.reader(csv_file)
-    header = next(data_file)
-    n_samples = int(header[0])
-    n_features = int(header[1])
-    data = np.zeros((n_samples, n_features), dtype=features_dtype)
-    target = np.zeros((n_samples,), dtype=target_dtype)
-    for i, row in enumerate(data_file):
-      target[i] = np.asarray(row.pop(target_column), dtype=target_dtype)
-      data[i] = np.asarray(row, dtype=features_dtype)
+    """Load dataset from CSV file with a header row."""
+    with gfile.Open(filename) as csv_file:
+        data_file = csv.reader(csv_file)
+        header = next(data_file)
+        n_samples = int(header[0])
+        n_features = int(header[1])
+        data = np.zeros((n_samples, n_features), dtype=features_dtype)
+        target = np.zeros((n_samples,), dtype=target_dtype)
+        for i, row in enumerate(data_file):
+            target[i] = np.asarray(row.pop(target_column), dtype=target_dtype)
+            data[i] = np.asarray(row, dtype=features_dtype)
 
-  return Dataset(data=data, target=target)
+    return Dataset(data=data, target=target)
 
 
 def load_csv_without_header(filename,
                             target_dtype,
                             features_dtype,
                             target_column=-1):
-  """Load dataset from CSV file without a header row."""
-  with gfile.Open(filename) as csv_file:
-    data_file = csv.reader(csv_file)
-    data, target = [], []
-    for row in data_file:
-      target.append(row.pop(target_column))
-      data.append(np.asarray(row, dtype=features_dtype))
+    """Load dataset from CSV file without a header row."""
+    with gfile.Open(filename) as csv_file:
+        data_file = csv.reader(csv_file)
+        data, target = [], []
+        for row in data_file:
+            target.append(row.pop(target_column))
+            data.append(np.asarray(row, dtype=features_dtype))
 
-  target = np.array(target, dtype=target_dtype)
-  data = np.array(data)
-  return Dataset(data=data, target=target)
+    target = np.array(target, dtype=target_dtype)
+    data = np.array(data)
+    return Dataset(data=data, target=target)
 
 
 def shrink_csv(filename, ratio):
-  """Create a smaller dataset of only 1/ratio of original data."""
-  filename_small = filename.replace('.', '_small.')
-  with gfile.Open(filename_small, 'w') as csv_file_small:
-    writer = csv.writer(csv_file_small)
-    with gfile.Open(filename) as csv_file:
-      reader = csv.reader(csv_file)
-      i = 0
-      for row in reader:
-        if i % ratio == 0:
-          writer.writerow(row)
-        i += 1
+    """Create a smaller dataset of only 1/ratio of original data."""
+    filename_small = filename.replace('.', '_small.')
+    with gfile.Open(filename_small, 'w') as csv_file_small:
+        writer = csv.writer(csv_file_small)
+        with gfile.Open(filename) as csv_file:
+            reader = csv.reader(csv_file)
+            i = 0
+            for row in reader:
+                if i % ratio == 0:
+                    writer.writerow(row)
+                i += 1
 
 
 def load_iris(data_path=None):
-  """Load Iris dataset.
+    """Load Iris dataset.
 
-  Args:
-      data_path: string, path to iris dataset (optional)
+    Args:
+        data_path: string, path to iris dataset (optional)
 
-  Returns:
-    Dataset object containing data in-memory.
-  """
-  if data_path is None:
-    module_path = path.dirname(__file__)
-    data_path = path.join(module_path, 'data', 'iris.csv')
-  return load_csv_with_header(
-      data_path,
-      target_dtype=np.int,
-      features_dtype=np.float)
+    Returns:
+      Dataset object containing data in-memory.
+    """
+    if data_path is None:
+        module_path = path.dirname(__file__)
+        data_path = path.join(module_path, 'data', 'iris.csv')
+    return load_csv_with_header(
+        data_path,
+        target_dtype=np.int,
+        features_dtype=np.float)
 
 
 def load_boston(data_path=None):
-  """Load Boston housing dataset.
+    """Load Boston housing dataset.
 
-  Args:
-      data_path: string, path to boston dataset (optional)
+    Args:
+        data_path: string, path to boston dataset (optional)
 
-  Returns:
-    Dataset object containing data in-memory.
-  """
-  if data_path is None:
-    module_path = path.dirname(__file__)
-    data_path = path.join(module_path, 'data', 'boston_house_prices.csv')
-  return load_csv_with_header(
-      data_path,
-      target_dtype=np.float,
-      features_dtype=np.float)
+    Returns:
+      Dataset object containing data in-memory.
+    """
+    if data_path is None:
+        module_path = path.dirname(__file__)
+        data_path = path.join(module_path, 'data', 'boston_house_prices.csv')
+    return load_csv_with_header(
+        data_path,
+        target_dtype=np.float,
+        features_dtype=np.float)
 
 
 def retry(initial_delay,
@@ -129,52 +131,54 @@ def retry(initial_delay,
           factor=2.0,
           jitter=0.25,
           is_retriable=None):
-  """Simple decorator for wrapping retriable functions.
+    """Simple decorator for wrapping retriable functions.
 
-  Args:
-    initial_delay: the initial delay.
-    factor: each subsequent retry, the delay is multiplied by this value.
-        (must be >= 1).
-    jitter: to avoid lockstep, the returned delay is multiplied by a random
-        number between (1-jitter) and (1+jitter). To add a 20% jitter, set
-        jitter = 0.2. Must be < 1.
-    max_delay: the maximum delay allowed (actual max is
-        max_delay * (1 + jitter).
-    is_retriable: (optional) a function that takes an Exception as an argument
-        and returns true if retry should be applied.
-  """
-  if factor < 1:
-    raise ValueError('factor must be >= 1; was %f' % (factor,))
+    Args:
+      initial_delay: the initial delay.
+      factor: each subsequent retry, the delay is multiplied by this value.
+          (must be >= 1).
+      jitter: to avoid lockstep, the returned delay is multiplied by a random
+          number between (1-jitter) and (1+jitter). To add a 20% jitter, set
+          jitter = 0.2. Must be < 1.
+      max_delay: the maximum delay allowed (actual max is
+          max_delay * (1 + jitter).
+      is_retriable: (optional) a function that takes an Exception as an argument
+          and returns true if retry should be applied.
+    """
+    if factor < 1:
+        raise ValueError('factor must be >= 1; was %f' % (factor,))
 
-  if jitter >= 1:
-    raise ValueError('jitter must be < 1; was %f' % (jitter,))
+    if jitter >= 1:
+        raise ValueError('jitter must be < 1; was %f' % (jitter,))
 
-  # Generator to compute the individual delays
-  def delays():
-    delay = initial_delay
-    while delay <= max_delay:
-      yield delay * random.uniform(1 - jitter,  1 + jitter)
-      delay *= factor
+    # Generator to compute the individual delays
+    def delays():
+        delay = initial_delay
+        while delay <= max_delay:
+            yield delay * random.uniform(1 - jitter, 1 + jitter)
+            delay *= factor
 
-  def wrap(fn):
-    """Wrapper function factory invoked by decorator magic."""
+    def wrap(fn):
+        """Wrapper function factory invoked by decorator magic."""
 
-    def wrapped_fn(*args, **kwargs):
-      """The actual wrapper function that applies the retry logic."""
-      for delay in delays():
-        try:
-          return fn(*args, **kwargs)
-        except Exception as e:  # pylint: disable=broad-except)
-          if is_retriable is None:
-            continue
+        def wrapped_fn(*args, **kwargs):
+            """The actual wrapper function that applies the retry logic."""
+            for delay in delays():
+                try:
+                    return fn(*args, **kwargs)
+                except Exception as e:  # pylint: disable=broad-except)
+                    if is_retriable is None:
+                        continue
 
-          if is_retriable(e):
-            time.sleep(delay)
-          else:
-            raise
-      return fn(*args, **kwargs)
-    return wrapped_fn
-  return wrap
+                    if is_retriable(e):
+                        time.sleep(delay)
+                    else:
+                        raise
+            return fn(*args, **kwargs)
+
+        return wrapped_fn
+
+    return wrap
 
 
 _RETRIABLE_ERRNOS = {
@@ -183,43 +187,63 @@ _RETRIABLE_ERRNOS = {
 
 
 def _is_retriable(e):
-  return isinstance(e, IOError) and e.errno in _RETRIABLE_ERRNOS
+    return isinstance(e, IOError) and e.errno in _RETRIABLE_ERRNOS
 
 
 @retry(initial_delay=1.0, max_delay=16.0, is_retriable=_is_retriable)
 def urlretrieve_with_retry(url, filename=None):
-  return urllib.request.urlretrieve(url, filename)
+    return urllib.request.urlretrieve(url, filename)
 
 
-def maybe_download(filename, work_directory, source_url):
-  """Download the data from source url, unless it's already here.
+def maybe_download(filename, work_directory, source_url, force=False):
+    """Download the data from source url, unless it's already here.
 
-  Args:
-      filename: string, name of the file in the directory.
-      work_directory: string, path to working directory.
-      source_url: url to download from if file doesn't exist.
+    Args:
+        filename: string, name of the file in the directory.
+        work_directory: string, path to working directory.
+        source_url: url to download from if file doesn't exist.
+        force: force download
 
-  Returns:
-      Path to resulting file.
-  """
-  if not gfile.Exists(work_directory):
-    gfile.MakeDirs(work_directory)
-  filepath = os.path.join(work_directory, filename)
-  if not gfile.Exists(filepath):
-    temp_file_name, _ = urlretrieve_with_retry(source_url)
-    gfile.Copy(temp_file_name, filepath)
-    with gfile.GFile(filepath) as f:
-      size = f.size()
-    print('Successfully downloaded', filename, size, 'bytes.')
-  return filepath
+    Returns:
+        Path to resulting file.
+    """
+    if not gfile.Exists(work_directory):
+        gfile.MakeDirs(work_directory)
+    filepath = os.path.join(work_directory, filename)
+    if not gfile.Exists(filepath) or force:
+        print('Downloading', source_url)
+        temp_file_name, _ = urlretrieve_with_retry(source_url)
+        gfile.Copy(temp_file_name, filepath)
+        with gfile.GFile(filepath) as f:
+            size = f.size()
+        print('Successfully downloaded', filename, size, 'bytes.')
+    return filepath
 
 
-def extract(filename, data_root, force=False, remove_single=True):
-    print('Extracting data for %s. This may take a while. Please wait.' % root)
-    tar = tarfile.open(filename)
-    sys.stdout.flush()
-    tar.extractall(data_root)
-    tar.close()
+def extract(filename, data_root, remove_single=True):
+    print('Extracting data for %s. This may take a while. Please wait.' % data_root)
+    shutil.rmtree(data_root, ignore_errors=True)
+    if tarfile.is_tarfile(filename):
+        tar = tarfile.open(filename)
+        sys.stdout.flush()
+        tar.extractall(data_root)
+        tar.close()
+    elif zipfile.is_zipfile(filename):
+        zf = zipfile.ZipFile(filename, 'r')
+        zf.extractall(data_root)
+        zf.close()
+    else:
+        raise NotImplementedError('File type is not supported for extraction: %s' % filename)
+
+    if remove_single and len(os.listdir(data_root)) == 1:
+        retry_cnt = 0
+        while os.path.exists(data_root + '_rename_%d' % retry_cnt):
+            retry_cnt += 1
+        tmp_dir = data_root + '_rename_%d' % retry_cnt
+        sub_dir_name = os.listdir(data_root)[0]
+        os.rename(data_root, tmp_dir)
+        os.rename(os.path.join(tmp_dir, sub_dir_name), data_root)
+        os.rmdir(tmp_dir)
 
 
 class FileStamp(object):
@@ -227,7 +251,29 @@ class FileStamp(object):
         self.root = root_dir
 
     def _file(self, name):
-        return os.path.join(self.root, '_unfinished_%s' % name)
+        return os.path.join(self.root, 'stamp_%s' % name)
 
     def exists(self, name):
-        return os.path.exists(self._file(name))
+        #return os.path.exists(self._file(name))
+        return len(glob(self._file(name))) > 0
+
+    def create(self, name):
+        file_path = self._file(name)
+        if not os.path.exists(self.root):
+            os.makedirs(self.root)
+        with open(file_path, 'w') as f:
+            pass
+
+        class StampHolder(object):
+            def __init__(self, parent, name):
+                self.stamp = parent
+                self.name = name
+
+            def remove(self):
+                self.stamp.remove(self.name)
+
+        return StampHolder(self, name)
+
+    def remove(self, name):
+        for f in glob(self._file(name)):
+            os.remove(f)
