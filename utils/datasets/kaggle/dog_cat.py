@@ -85,17 +85,33 @@ def _select_samples(src_dir, sample_num):
     tgt_dir = os.path.realpath(os.path.join(src_dir, '..', 'sample'))
     shutil.rmtree(tgt_dir, ignore_errors=True)
 
+    sample_valid = max(sample_num//10, 4)
+
     for fold in ['cats', 'dogs']:
-        rand_files = np.random.choice(os.listdir(os.path.join(src_dir, fold)), sample_num, replace=False)
-        copy_tgt = os.path.join(tgt_dir, fold)
+        all_imgs = os.listdir(os.path.join(src_dir, fold))
+
+        # Random train samples
+        rand_files = np.random.choice(all_imgs, sample_num, replace=False)
+        copy_tgt = os.path.join(tgt_dir, 'train', fold)
         os.makedirs(copy_tgt)
 
         for f in rand_files:
             shutil.copy(os.path.join(src_dir, fold, f), copy_tgt)
 
+        # Random validate samples
+        rand_valid = np.random.choice(
+            [f for f in all_imgs if f not in rand_files], sample_valid,
+            replace=False)
+
+        copy_tgt = os.path.join(tgt_dir, 'valid', fold)
+        os.makedirs(copy_tgt)
+        for f in rand_valid:
+            shutil.copy(os.path.join(src_dir, fold, f), copy_tgt)
+
+
 def download_data(validate=1000, sample=10):
-    TRAIN_ZIP = 'train.zip'
-    TEST_ZIP = 'test1.zip'
+    train_zip = 'train.zip'
+    test_zip = 'test1.zip'
 
     cache_dir = default_dir('kaggle/dog_cat', 'cache')
     stamp_dir = default_dir('kaggle/dog_cat', 'stamp')
@@ -104,12 +120,12 @@ def download_data(validate=1000, sample=10):
     stamp = base.FileStamp(stamp_dir)
 
     # train data
-    local_file = _stamp_download(TRAIN_ZIP, cache_dir, SOURCE_URL + TRAIN_ZIP, stamp)
+    local_file = _stamp_download(train_zip, cache_dir, SOURCE_URL + train_zip, stamp)
     force_extract_train = not stamp.exists('valid_%d' % validate) or not os.path.exists(os.path.join(data_dir, 'valid'))
     _extract_data(local_file, os.path.join(data_dir, 'train'), stamp=stamp, force=force_extract_train)
 
     # test data
-    local_file = _stamp_download(TEST_ZIP, cache_dir, SOURCE_URL + TEST_ZIP, stamp)
+    local_file = _stamp_download(test_zip, cache_dir, SOURCE_URL + test_zip, stamp)
     _extract_data(local_file, os.path.join(data_dir, 'test1'), stamp=stamp)
 
     # validate data
@@ -119,7 +135,10 @@ def download_data(validate=1000, sample=10):
     stamp.create('valid_%d' % validate)
 
     # sample data
-    if not stamp.exists('sample_%d' % sample) or os.path.exists(os.path.join(data_dir, 'sample')):
+    if not stamp.exists('sample_%d' % sample) or not os.path.exists(
+            os.path.join(data_dir, 'sample')):
         stamp.remove('sample_*')
         _select_samples(os.path.join(data_dir, 'train'), sample)
         stamp.create('sample_%d' % sample)
+
+    return data_dir
