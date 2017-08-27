@@ -9,8 +9,8 @@ import shutil
 import numpy as np
 from six.moves import xrange  # pylint: disable=redefined-builtin
 
-from utils.datasets import base
-from utils.datasets import default_dir
+from lessdeep.utils.datasets import base
+from lessdeep.utils.datasets import default_dir
 
 SOURCE_URL = 'https://www.kaggle.com/c/dogs-vs-cats/download/'
 

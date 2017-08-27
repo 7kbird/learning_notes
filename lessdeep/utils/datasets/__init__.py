@@ -1,7 +1,7 @@
 import os
 
 DEFAULT_DATA_ROOT = os.path.realpath(os.path.join(os.path.dirname(__file__),
-                                                  '..', '..', '_data'))
+                                                  '..', '..', '..', '_data'))
 
 
 def default_dir(name_id, dir_type='cache'):
