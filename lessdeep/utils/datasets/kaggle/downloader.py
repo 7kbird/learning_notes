@@ -1,0 +1,135 @@
+import os
+import sys
+import pickle
+
+import progressbar
+from mechanicalsoup import Browser
+from ...datasets import default_dir
+
+
+def login(username, password):
+    pickle_path = os.path.join(default_dir('kaggle', 'cache'),
+                               'browser.pickle')
+
+    if os.path.isfile(pickle_path):
+        with open(pickle_path, 'rb') as file:
+            data = pickle.load(file)
+            if data['username'] == username and \
+                    data['password'] == password:
+                return data['browser']
+    else:
+        os.makedirs(os.path.dirname(pickle_path), exist_ok=True)
+
+    login_url = 'https://www.kaggle.com/account/login'
+    browser = Browser()
+
+    login_page = browser.get(login_url)
+    login_form = login_page.soup.select("#login-account")[0]
+    login_form.select("#UserName")[0]['value'] = username
+    login_form.select("#Password")[0]['value'] = password
+    login_result = browser.submit(login_form, login_page.url)
+    if login_result.url == login_url:
+        error = (login_result.soup
+                .select('#standalone-signin .validation-summary-errors')[0].get_text())
+        raise RuntimeError('There was an error logging in: ' + error)
+
+    with open(pickle_path, 'wb') as f:
+        pickle.dump(dict(
+            username=username, password=password, browser=browser
+        ), f)
+
+    return browser
+
+
+def ui_login():
+    import getpass
+
+    user = getpass.getpass("Enter your user name:")
+    password = getpass.getpass("Enter your Password:")
+
+    return login(user, password)
+
+
+def download_dataset(competition, filename):
+    browser = ui_login()
+
+    # TODO: add more
+
+
+def _is_downloadable(response):
+    '''
+    Checks whether the response object is a html page
+    or a likely downloadable file.
+    Intended to detect error pages or prompts
+    such as kaggle's competition rules acceptance prompt.
+    Returns True if the response is a html page. False otherwise.
+    '''
+
+    content_type = response.headers.get('Content-Type', '')
+    content_disp = response.headers.get('Content-Disposition', '')
+
+    if 'text/html' in content_type and 'attachment' not in content_disp:
+        # This response is a html file
+        # which is not marked as an attachment,
+        # so we likely hit a rules acceptance prompt
+        return False
+    return True
+
+
+def download_file(browser, url, download_folder='.'):
+    print('downloading {}\n'.format(url))
+    local_filename = url.split('/')[-1]
+    headers = {}
+    done = False
+    file_size = 0
+    content_length = int(
+        browser.request('head', url).headers.get('Content-Length')
+    )
+
+    bar = progressbar.ProgressBar()
+    widgets = [local_filename, ' ', progressbar.Percentage(), ' ',
+               progressbar.Bar(marker='#'), ' ',
+               progressbar.ETA(), ' ', progressbar.FileTransferSpeed()]
+
+    local_filename = os.path.join(download_folder, local_filename)
+    if os.path.isfile(local_filename):
+        file_size = os.path.getsize(local_filename)
+        if file_size < content_length:
+            headers['Range'] = 'bytes={}-'.format(file_size)
+        else:
+            done = True
+
+    finished_bytes = file_size
+
+    if file_size == content_length:
+        print('{} already downloaded !'.format(local_filename))
+        return
+    elif file_size > content_length:
+        print('Something wrong here, Incorrect file !')
+        return
+    else:
+        bar = progressbar.ProgressBar(widgets=widgets,
+                                      maxval=content_length).start()
+        bar.update(finished_bytes)
+
+    if not done:
+        stream = browser.get(url, stream=True, headers=headers)
+        if not _is_downloadable(stream):
+            warning = (
+                'Warning:'
+                'download url for file {} resolves to an html document'
+                'rather than a downloadable file. \n'
+                'See the downloaded file for details.'
+                'Is it possible you have not'
+                'accepted the competition\'s rules on the kaggle website?'
+                    .format(local_filename)
+            )
+            print('{}\n'.format(warning))
+
+        with open(local_filename, 'ab') as f:
+            for chunk in stream.iter_content(chunk_size=1024):
+                if chunk:  # filter out keep-alive new chunks
+                    f.write(chunk)
+                    finished_bytes += len(chunk)
+                    bar.update(finished_bytes)
+        bar.finish()
