@@ -17,7 +17,7 @@ class Vgg16(object):
     vgg_mean = np.array([123.68, 116.779, 103.939])
 
     def __init__(self, cache_dir=None):
-        self.create(cache_dir=cache_dir)
+        self.model, self.classes = self.create(cache_dir=cache_dir)
 
     @staticmethod
     def get_batches(path_dir, generator=None, shuffle=True, batch_size=8, class_mode='categorial', **kwargs):
@@ -51,7 +51,7 @@ class Vgg16(object):
                                 target_size=(224, 224), **kwargs)
 
     @staticmethod
-    def image_convert(images):
+    def img_cvt(images):
         vgg_mean = Vgg16.vgg_mean.reshape((3, 1, 1))
         if len(images.shape) == 3:
             # for only 1 image
@@ -68,15 +68,17 @@ class Vgg16(object):
             :param layers: number of convolution layers
             :param filters: number of filters in each layer
             '''
+            data_format = 'channels_first'
             for _ in range(layers):
                 kwargs = {}
                 if input_shape:
                     kwargs = {'input_shape': input_shape}
                     input_shape = None
-                model.add(ZeroPadding2D((1, 1), **kwargs))  # Zero pad with 1 pix
-                model.add(Conv2D(filters, (3, 3),
+                model.add(ZeroPadding2D((1, 1), data_format=data_format,
+                                        **kwargs))  # Zero pad with 1 pix
+                model.add(Conv2D(filters, (3, 3), data_format=data_format,
                                  activation='relu'))  # convolution layer with 3*3 kernel and stride (1,1) by default
-            model.add(MaxPool2D((2, 2), strides=(2, 2)))
+            model.add(MaxPool2D((2, 2), strides=(2, 2), data_format=data_format))
 
         def _dense_block(model):
             model.add(Dense(4096, activation='relu'))
@@ -101,7 +103,16 @@ class Vgg16(object):
         weights = get_file('vgg16.h5', url_base + 'vgg16.h5', cache_subdir=cache_dir,
                            hash_algorithm='md5', file_hash='884146ea83b6c8120d28f686b56eb471')
         model.load_weights(weights)
-        self.model = model
+
+        # Download label classes
+        class_file = get_file('imagenet_class_index.json', url_base + 'imagenet_class_index.json',
+                           cache_subdir=cache_dir)
+        with open(class_file) as f:
+            import json
+            class_dict = json.load(f)
+        classes = [class_dict[str(i)][1] for i in range(len(class_dict))]
+
+        return model, classes
 
     def finetune(self, batches):
         '''Change the last layer to fit for the batches. Freeze other layer weights
@@ -109,9 +120,36 @@ class Vgg16(object):
         :param batches: convert the model to fit for the batch data
         :return: None
         '''
-
         self.model.pop()
-        for layer in self.model:
+        for layer in self.model.layers:
             layer.trainable = False
+        self.model.add(Dense(batches.num_class, activation='softmax'))
+        self.compile()
 
-        self.model.add()
+        # Find classes
+        class_dic = batches.class_indices
+
+        # Keras class_indices is in form of {'classA':0, 'classB':1,...}
+        self.classes = sorted([name for name in class_dic], key=lambda name: class_dic[name])
+
+    def compile(self, lr=0.001):
+        from keras.optimizers import Adam
+        self.model.compile(optimizer=Adam(lr=lr),
+                           loss='categorical_crossentropy',
+                           metrics=['accuracy'])
+
+    def predict(self, images):
+        predicts = self.model.predict(images)
+
+        indexes = np.argmax(predicts, axis=1)
+        predicts = [predicts[i, idx] for i, idx in enumerate(indexes)]
+        classes = [self.classes[i] for i in indexes]
+
+        return predicts, indexes, classes
+
+    def fit(self, batches, val_batches, epochs):
+        self.model.fit_generator(batches,
+                                 steps_per_epoch=batches.samples // batches.batch_size,
+                                 epochs=epochs,
+                                 validation_data=val_batches,
+                                 validation_steps=val_batches.samples // val_batches.batch_size)

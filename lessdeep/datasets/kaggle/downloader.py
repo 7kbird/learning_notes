@@ -1,6 +1,6 @@
 import os
-import sys
 import pickle
+import re
 
 import progressbar
 from mechanicalsoup import Browser
@@ -50,10 +50,35 @@ def ui_login():
     return login(user, password)
 
 
-def download_dataset(competition, filename):
-    browser = ui_login()
+def download_dataset(competition, filename, folder='.', browser=None):
+    if not browser:
+        browser = ui_login()
 
     # TODO: add more
+    base = 'https://www.kaggle.com'
+    data_url = '/'.join([base, 'c', competition, 'data'])
+
+    data_page = browser.get(data_url)
+
+    data = str(data_page.soup)
+    links = re.findall(
+        '"url":"(/c/{}/download/[^"]+)"'.format(competition), data
+    )
+
+    if not links:  # fallback for inclass competition
+        links = map(
+            lambda link: link.get('href'),
+            data_page.soup.find(id='data-files').find_all('a')
+        )
+
+    if not links:
+        print('not found')
+
+    for link in links:
+        url = base + link
+        if url.endswith('/' + filename):
+            return download_file(browser, url, folder)
+    raise RuntimeError("Cannot found {0} for competition {1}".format(filename, competition))
 
 
 def _is_downloadable(response):
@@ -77,59 +102,64 @@ def _is_downloadable(response):
 
 
 def download_file(browser, url, download_folder='.'):
-    print('downloading {}\n'.format(url))
     local_filename = url.split('/')[-1]
+    final_file = os.path.join(download_folder, local_filename)
+    down_file = final_file + '.download'
+
+    if os.path.isfile(final_file):
+        print('{} already downloaded !'.format(final_file))
+        return final_file
+
+    print('downloading {}\n'.format(url))
     headers = {}
-    done = False
     file_size = 0
     content_length = int(
         browser.request('head', url).headers.get('Content-Length')
     )
 
-    bar = progressbar.ProgressBar()
     widgets = [local_filename, ' ', progressbar.Percentage(), ' ',
                progressbar.Bar(marker='#'), ' ',
                progressbar.ETA(), ' ', progressbar.FileTransferSpeed()]
 
-    local_filename = os.path.join(download_folder, local_filename)
-    if os.path.isfile(local_filename):
-        file_size = os.path.getsize(local_filename)
+    if os.path.isfile(down_file):
+        file_size = os.path.getsize(down_file)
         if file_size < content_length:
             headers['Range'] = 'bytes={}-'.format(file_size)
-        else:
-            done = True
 
     finished_bytes = file_size
 
     if file_size == content_length:
-        print('{} already downloaded !'.format(local_filename))
-        return
+        os.rename(down_file, final_file)
+        print('{} already downloaded !'.format(final_file))
+        return final_file
     elif file_size > content_length:
-        print('Something wrong here, Incorrect file !')
-        return
+        raise RuntimeError('Something wrong here, Incorrect file !')
     else:
         bar = progressbar.ProgressBar(widgets=widgets,
                                       maxval=content_length).start()
         bar.update(finished_bytes)
 
-    if not done:
-        stream = browser.get(url, stream=True, headers=headers)
-        if not _is_downloadable(stream):
-            warning = (
-                'Warning:'
-                'download url for file {} resolves to an html document'
-                'rather than a downloadable file. \n'
-                'See the downloaded file for details.'
-                'Is it possible you have not'
-                'accepted the competition\'s rules on the kaggle website?'
-                    .format(local_filename)
-            )
-            print('{}\n'.format(warning))
+    stream = browser.get(url, stream=True, headers=headers)
+    if not _is_downloadable(stream):
+        warning = (
+            'Warning:'
+            'download url for file {} resolves to an html document'
+            'rather than a downloadable file. \n'
+            'See the downloaded file for details.'
+            'Is it possible you have not'
+            'accepted the competition\'s rules on the kaggle website?'
+                .format(local_filename)
+        )
+        print('{}\n'.format(warning))
 
-        with open(local_filename, 'ab') as f:
-            for chunk in stream.iter_content(chunk_size=1024):
-                if chunk:  # filter out keep-alive new chunks
-                    f.write(chunk)
-                    finished_bytes += len(chunk)
-                    bar.update(finished_bytes)
-        bar.finish()
+    os.makedirs(os.path.dirname(down_file), exist_ok=True)
+    with open(down_file, 'ab') as f:
+        for chunk in stream.iter_content(chunk_size=1024):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+                finished_bytes += len(chunk)
+                bar.update(finished_bytes)
+    os.rename(down_file, final_file)
+    bar.finish()
+
+    return final_file

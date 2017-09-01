@@ -3,14 +3,14 @@ from __future__ import division
 from __future__ import print_function
 
 import os
-from glob import glob
 import shutil
+from glob import glob
 
 import numpy as np
-from six.moves import xrange  # pylint: disable=redefined-builtin
 
 from ...datasets import base
 from ...datasets import default_dir
+from .downloader import download_dataset, ui_login
 
 SOURCE_URL = 'https://www.kaggle.com/c/dogs-vs-cats/download/'
 
@@ -55,19 +55,6 @@ def _extract_data(zip_file_path, extract_dir, stamp, force=False):
     stamp.remove(stamp_name)
 
 
-def _stamp_download(filename, download_dir, url, stamp):
-    stamp_name = 'download_' + filename
-    force = False
-    if stamp.exists(stamp_name):
-        force = True
-
-    stamp.create(stamp_name)
-    local_file = base.maybe_download(filename, download_dir, url, force=force)
-    stamp.remove(stamp_name)
-
-    return local_file
-
-
 def _split_validate(src_dir, valid_num):
     tgt_dir = os.path.realpath(os.path.join(src_dir, '..', 'valid'))
     shutil.rmtree(tgt_dir, ignore_errors=True)
@@ -110,22 +97,20 @@ def _select_samples(src_dir, sample_num):
 
 
 def download_data(validate=1000, sample=10):
-    train_zip = 'train.zip'
-    test_zip = 'test1.zip'
-
     cache_dir = default_dir('kaggle/dog_cat', 'cache')
     stamp_dir = default_dir('kaggle/dog_cat', 'stamp')
     data_dir = default_dir('kaggle/dog_cat', 'data')
 
     stamp = base.FileStamp(stamp_dir)
 
+    browser = ui_login()
     # train data
-    local_file = _stamp_download(train_zip, cache_dir, SOURCE_URL + train_zip, stamp)
+    local_file = download_dataset('dogs-vs-cats', 'train.zip', cache_dir, browser=browser)
     force_extract_train = not stamp.exists('valid_%d' % validate) or not os.path.exists(os.path.join(data_dir, 'valid'))
     _extract_data(local_file, os.path.join(data_dir, 'train'), stamp=stamp, force=force_extract_train)
 
     # test data
-    local_file = _stamp_download(test_zip, cache_dir, SOURCE_URL + test_zip, stamp)
+    local_file = download_dataset('dogs-vs-cats', 'test1.zip', cache_dir, browser=browser)
     _extract_data(local_file, os.path.join(data_dir, 'test1'), stamp=stamp)
 
     # validate data
