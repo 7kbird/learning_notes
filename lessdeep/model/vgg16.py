@@ -18,6 +18,7 @@ class Vgg16(object):
 
     def __init__(self, cache_dir=None):
         self.model, self.classes = self.create(cache_dir=cache_dir)
+        self.class_mode = 'categorial'
 
     @staticmethod
     def get_batches(path_dir, generator=None, shuffle=True, batch_size=8, class_mode='categorial', **kwargs):
@@ -99,7 +100,7 @@ class Vgg16(object):
 
         # Download precompiled model weights
         if not cache_dir:
-            cache_dir = base.cache_dir('vgg16')
+            cache_dir = base.cache_dir('vgg16', 'pre-trained')
         weights = get_file('vgg16.h5', url_base + 'vgg16.h5', cache_subdir=cache_dir,
                            hash_algorithm='md5', file_hash='884146ea83b6c8120d28f686b56eb471')
         model.load_weights(weights)
@@ -114,15 +115,20 @@ class Vgg16(object):
 
         return model, classes
 
-    def finetune(self, batches):
+    def finetune(self, batches, class_mode='categorial'):
         '''Change the last layer to fit for the batches. Freeze other layer weights
 
         :param batches: convert the model to fit for the batch data
         :return: None
         '''
+        if class_mode not in ['categorial']:
+            raise NotImplementedError(class_mode + ' is not implemented yet')
+        self.class_mode = class_mode
+
         self.model.pop()
         for layer in self.model.layers:
             layer.trainable = False
+
         self.model.add(Dense(batches.num_class, activation='softmax'))
         self.compile()
 
@@ -138,14 +144,28 @@ class Vgg16(object):
                            loss='categorical_crossentropy',
                            metrics=['accuracy'])
 
-    def predict(self, images):
+    def _wrap_prediction(self, predicts, class_mode):
+        if class_mode == 'default':
+            class_mode = self.class_mode
+
+        if class_mode == 'categorial':
+            indexes = np.argmax(predicts, axis=1)
+            predicts = [predicts[i, idx] for i, idx in enumerate(indexes)]
+            classes = [self.classes[i] for i in indexes]
+
+            return predicts, indexes, classes
+        elif class_mode is None:
+            return predicts
+
+    def predict_data(self, images, class_mode='default'):
         predicts = self.model.predict(images)
 
-        indexes = np.argmax(predicts, axis=1)
-        predicts = [predicts[i, idx] for i, idx in enumerate(indexes)]
-        classes = [self.classes[i] for i in indexes]
+        return self._wrap_prediction(predicts, class_mode)
 
-        return predicts, indexes, classes
+    def predict(self, batch_generator, class_mode='default'):
+        predicts = self.model.predict_generator(batch_generator,
+                                                steps=batch_generator.samples // batch_generator.batch_size)
+        return self._wrap_prediction(predicts, class_mode)
 
     def fit(self, batches, val_batches, epochs):
         self.model.fit_generator(batches,
@@ -153,3 +173,10 @@ class Vgg16(object):
                                  epochs=epochs,
                                  validation_data=val_batches,
                                  validation_steps=val_batches.samples // val_batches.batch_size)
+
+    def save_weights(self, file_name):
+        import os
+        if not os.path.isabs(file_name):
+            file_name = os.path.join(base.cache_dir('vgg16', 'weights'), file_name)
+
+        self.model.save_weights(file_name)
