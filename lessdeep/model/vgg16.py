@@ -5,6 +5,7 @@ Created on Sat Aug 26 16:16:42 2017
 @author: doctor
 """
 
+import os
 import numpy as np
 import keras
 from keras.preprocessing.image import ImageDataGenerator
@@ -162,21 +163,37 @@ class Vgg16(object):
 
         return self._wrap_prediction(predicts, class_mode)
 
-    def predict(self, batch_generator, class_mode='default'):
-        predicts = self.model.predict_generator(batch_generator,
-                                                steps=batch_generator.samples // batch_generator.batch_size)
+    def predict(self, batch_generator, class_mode='default', verbose=0):
+        steps = int(np.ceil(batch_generator.samples //
+                            batch_generator.batch_size))
+        predicts = self.model.predict_generator(batch_generator, workers=1,
+                                                steps=steps, verbose=verbose)
         return self._wrap_prediction(predicts, class_mode)
 
     def fit(self, batches, val_batches, epochs):
         self.model.fit_generator(batches,
-                                 steps_per_epoch=batches.samples // batches.batch_size,
+                                 steps_per_epoch=batches.samples //
+                                                 batches.batch_size,
                                  epochs=epochs,
                                  validation_data=val_batches,
-                                 validation_steps=val_batches.samples // val_batches.batch_size)
+                                 validation_steps=val_batches.samples //
+                                                  val_batches.batch_size)
+
+    def _default_weight_path(self, file_name):
+        return os.path.join(base.cache_dir('vgg16', 'weights'), file_name)
 
     def save_weights(self, file_name):
-        import os
         if not os.path.isabs(file_name):
-            file_name = os.path.join(base.cache_dir('vgg16', 'weights'), file_name)
-
+            file_name = self._default_weight_path(file_name)
+        os.makedirs(os.path.dirname(file_name), exist_ok=True)
         self.model.save_weights(file_name)
+
+        return file_name
+
+    def load_weights(self, file_name):
+        if not os.path.isabs(file_name):
+            file_name = self._default_weight_path(file_name)
+        if not os.path.isfile(file_name):
+            raise RuntimeError("File not exists:", file_name)
+
+        self.model.load_weights(file_name)
