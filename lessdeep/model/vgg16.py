@@ -22,7 +22,7 @@ class Vgg16(object):
         self.class_mode = 'categorial'
 
     @staticmethod
-    def get_batches(path_dir, generator=None, shuffle=True, batch_size=8, class_mode='categorial', **kwargs):
+    def get_batches(path_dir, generator=None, shuffle=True, batch_size=8, class_mode='categorical', **kwargs):
         '''Setup preprocessing for vgg16
 
         example:
@@ -116,7 +116,8 @@ class Vgg16(object):
 
         return model, classes
 
-    def finetune(self, batches, class_mode='categorial'):
+    def finetune(self, batches, class_mode='categorial', method='replace',
+                 **kwargs):
         '''Change the last layer to fit for the batches. Freeze other layer weights
 
         :param batches: convert the model to fit for the batch data
@@ -124,14 +125,22 @@ class Vgg16(object):
         '''
         if class_mode not in ['categorial']:
             raise NotImplementedError(class_mode + ' is not implemented yet')
+        if method not in ['replace', 'append', 'none']:
+            raise NotImplementedError(method + ' is not implemented yet')
+
         self.class_mode = class_mode
 
-        self.model.pop()
-        for layer in self.model.layers:
-            layer.trainable = False
+        if method != 'none':
+            if method == 'replace':
+                self.model.pop()
+
+            for layer in self.model.layers:
+                layer.trainable = False
 
         self.model.add(Dense(batches.num_class, activation='softmax'))
-        self.compile()
+
+
+        self.compile(**kwargs)
 
         # Find classes
         class_dic = batches.class_indices
@@ -139,14 +148,16 @@ class Vgg16(object):
         # Keras class_indices is in form of {'classA':0, 'classB':1,...}
         self.classes = sorted([name for name in class_dic], key=lambda name: class_dic[name])
 
-    def compile(self, lr=0.001):
-        from keras.optimizers import Adam
-        self.model.compile(optimizer=Adam(lr=lr),
+    def compile(self, lr=0.001, optimizer=None):
+        if not optimizer:
+            from keras.optimizers import Adam
+            optimizer=Adam(lr=lr)
+        self.model.compile(optimizer=optimizer,
                            loss='categorical_crossentropy',
                            metrics=['accuracy'])
 
     def _wrap_prediction(self, predicts, class_mode):
-        if class_mode == 'default':
+        if class_mode == 'auto':
             class_mode = self.class_mode
 
         if class_mode == 'categorial':
@@ -158,26 +169,27 @@ class Vgg16(object):
         elif class_mode is None:
             return predicts
 
-    def predict_data(self, images, class_mode='default'):
+    def predict_data(self, images, class_mode='auto'):
         predicts = self.model.predict(images)
 
         return self._wrap_prediction(predicts, class_mode)
 
-    def predict(self, batch_generator, class_mode='default', verbose=0):
+    def predict(self, batch_generator, class_mode='auto', verbose=0):
         steps = int(np.ceil(batch_generator.samples //
                             batch_generator.batch_size))
         predicts = self.model.predict_generator(batch_generator, workers=1,
                                                 steps=steps, verbose=verbose)
         return self._wrap_prediction(predicts, class_mode)
 
-    def fit(self, batches, val_batches, epochs):
+    def fit(self, batches, val_batches, epochs, **kwargs):
         self.model.fit_generator(batches,
                                  steps_per_epoch=batches.samples //
                                                  batches.batch_size,
                                  epochs=epochs,
                                  validation_data=val_batches,
                                  validation_steps=val_batches.samples //
-                                                  val_batches.batch_size)
+                                                  val_batches.batch_size,
+                                 **kwargs)
 
     def _default_weight_path(self, file_name):
         return os.path.join(base.cache_dir('vgg16', 'weights'), file_name)

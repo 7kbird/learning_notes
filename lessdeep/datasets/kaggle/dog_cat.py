@@ -55,6 +55,15 @@ def _extract_data(zip_file_path, extract_dir, stamp, force=False):
     stamp.remove(stamp_name)
 
 
+def _extract_test(zip_file_path, extract_dir):
+    if os.path.exists(extract_dir):
+        return
+    extract_tmp = extract_dir + '_tmp'
+    shutil.rmtree(extract_tmp, ignore_errors=True)
+
+    base.extract(zip_file_path, extract_tmp, remove_single=False)
+    os.rename(extract_tmp, extract_dir)
+
 def _split_validate(src_dir, valid_num):
     tgt_dir = os.path.realpath(os.path.join(src_dir, '..', 'valid'))
     shutil.rmtree(tgt_dir, ignore_errors=True)
@@ -111,7 +120,7 @@ def download_data(validate=1000, sample=10):
 
     # test data
     local_file = download_dataset('dogs-vs-cats', 'test1.zip', cache_dir, browser=browser)
-    _extract_data(local_file, os.path.join(data_dir, 'test1'), stamp=stamp)
+    _extract_test(local_file, os.path.join(data_dir, 'test'))
 
     # validate data
     stamp.remove('valid_*')
