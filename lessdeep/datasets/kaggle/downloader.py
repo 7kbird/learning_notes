@@ -12,7 +12,7 @@ def login(username, password, browser=None):
     pickle_path = os.path.join(default_dir('kaggle', 'cache'),
                                'browser.pickle')
 
-    if os.path.isfile(pickle_path):
+    if not browser and os.path.isfile(pickle_path):
         with open(pickle_path, 'rb') as file:
             data = pickle.load(file)
             if data['username'] == username and \
@@ -53,9 +53,7 @@ def ui_login(browser=None):
 
 
 def download_dataset(competition, filename, folder='.', browser=None):
-    try_login = False
     if not browser:
-        try_login = True
         browser = Browser()
 
     # TODO: add more
@@ -81,7 +79,7 @@ def download_dataset(competition, filename, folder='.', browser=None):
     for link in links:
         url = base + link
         if url.endswith('/' + filename):
-            return download_file(browser, url, folder, try_login)
+            return download_file(browser, url, folder)
     raise RuntimeError("Cannot found {0} for competition {1}".format(filename, competition))
 
 
@@ -179,6 +177,4 @@ def download_extract(competition, filename, extract_root, download_dir='.',
     down_file = download_dataset(competition, filename, download_dir, browser)
 
     extract_dir = os.path.join(extract_root, filename.split('.')[0])
-    extract_tmp = extract_dir + '_extract_tmp'
-
-    base.extract(filename, extract_tmp)
+    base.extract(down_file, extract_dir)

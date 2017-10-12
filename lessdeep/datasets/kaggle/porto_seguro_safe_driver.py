@@ -6,7 +6,6 @@ from ...datasets import base
 from ...datasets import default_dir
 from .downloader import download_extract
 
-import os
 from mechanicalsoup import Browser
 
 
@@ -24,10 +23,13 @@ def download_data():
     stamp_dir = default_dir('kaggle/porto_seguro_safe_driver', 'stamp')
     data_dir = default_dir('kaggle/porto_seguro_safe_driver', 'data')
 
-    stamp = base.FileStamp(stamp_dir)
-
     browser = Browser()
     train_dir = download_extract('porto-seguro-safe-driver-prediction',
-                                 'train.zip', download_dir=cache_dir,
+                                 'train.7z', download_dir=cache_dir,
                                   browser=browser, extract_root=data_dir)
 
+    test_dir = download_extract('porto-seguro-safe-driver-prediction',
+                                 'test.7z', download_dir=cache_dir,
+                                  browser=browser, extract_root=data_dir)
+
+    return Downloaded(train_dir, test_dir)

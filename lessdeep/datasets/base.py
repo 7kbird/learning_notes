@@ -223,27 +223,33 @@ def maybe_download(filename, work_directory, source_url, force=False):
 def extract(filename, data_root, remove_single=True):
     print('Extracting data for %s. This may take a while. Please wait.' % data_root)
     shutil.rmtree(data_root, ignore_errors=True)
+
+    def get_extract_tmp():
+        retry_cnt = 0
+        while os.path.exists(data_root + '_extract_unfinish_%d' % retry_cnt):
+            retry_cnt += 1
+        return data_root + '_extract_unfinish_%d' % retry_cnt
+
+    extract_tmp = get_extract_tmp()
+
     if tarfile.is_tarfile(filename):
         tar = tarfile.open(filename)
         sys.stdout.flush()
-        tar.extractall(data_root)
+        tar.extractall(extract_tmp)
         tar.close()
     elif zipfile.is_zipfile(filename):
         zf = zipfile.ZipFile(filename, 'r')
-        zf.extractall(data_root)
+        zf.extractall(extract_tmp)
         zf.close()
     else:
         raise NotImplementedError('File type is not supported for extraction: %s' % filename)
 
-    if remove_single and len(os.listdir(data_root)) == 1:
-        retry_cnt = 0
-        while os.path.exists(data_root + '_rename_%d' % retry_cnt):
-            retry_cnt += 1
-        tmp_dir = data_root + '_rename_%d' % retry_cnt
-        sub_dir_name = os.listdir(data_root)[0]
-        os.rename(data_root, tmp_dir)
-        os.rename(os.path.join(tmp_dir, sub_dir_name), data_root)
-        os.rmdir(tmp_dir)
+    if remove_single and len(os.listdir(extract_tmp)) == 1:
+        sub_dir_name = os.listdir(extract_tmp)[0]
+        os.rename(os.path.join(extract_tmp, sub_dir_name), data_root)
+        os.rmdir(extract_tmp)
+    else:
+        os.rename(extract_tmp, data_root)
 
 
 class FileStamp(object):
