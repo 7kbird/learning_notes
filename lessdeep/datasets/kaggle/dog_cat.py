@@ -7,10 +7,11 @@ import shutil
 from glob import glob
 
 import numpy as np
+from mechanicalsoup import Browser
 
 from ...datasets import base
 from ...datasets import default_dir
-from .downloader import download_dataset, ui_login
+from .downloader import download_dataset
 
 SOURCE_URL = 'https://www.kaggle.com/c/dogs-vs-cats/download/'
 
@@ -64,6 +65,7 @@ def _extract_test(zip_file_path, extract_dir):
     base.extract(zip_file_path, extract_tmp, remove_single=False)
     os.rename(extract_tmp, extract_dir)
 
+
 def _split_validate(src_dir, valid_num):
     tgt_dir = os.path.realpath(os.path.join(src_dir, '..', 'valid'))
     shutil.rmtree(tgt_dir, ignore_errors=True)
@@ -112,10 +114,12 @@ def download_data(validate=1000, sample=10):
 
     stamp = base.FileStamp(stamp_dir)
 
-    browser = ui_login()
+    browser = Browser()
     # train data
-    local_file = download_dataset('dogs-vs-cats', 'train.zip', cache_dir, browser=browser)
-    force_extract_train = not stamp.exists('valid_%d' % validate) or not os.path.exists(os.path.join(data_dir, 'valid'))
+    local_file = download_dataset('dogs-vs-cats', 'train.zip', cache_dir,
+                                  browser=browser)
+    force_extract_train = not stamp.exists('valid_%d' % validate) or not \
+        os.path.exists(os.path.join(data_dir, 'valid'))
     _extract_data(local_file, os.path.join(data_dir, 'train'), stamp=stamp, force=force_extract_train)
 
     # test data

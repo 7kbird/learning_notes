@@ -5,9 +5,10 @@ import re
 import progressbar
 from mechanicalsoup import Browser
 from ...datasets import default_dir
+from ...datasets import base
 
 
-def login(username, password):
+def login(username, password, browser=None):
     pickle_path = os.path.join(default_dir('kaggle', 'cache'),
                                'browser.pickle')
 
@@ -21,7 +22,8 @@ def login(username, password):
         os.makedirs(os.path.dirname(pickle_path), exist_ok=True)
 
     login_url = 'https://www.kaggle.com/account/login'
-    browser = Browser()
+    if not browser:
+        browser = Browser()
 
     login_page = browser.get(login_url)
     login_form = login_page.soup.select("#login-account")[0]
@@ -41,18 +43,20 @@ def login(username, password):
     return browser
 
 
-def ui_login():
+def ui_login(browser=None):
     import getpass
 
     user = getpass.getpass("Enter your user name:")
     password = getpass.getpass("Enter your Password:")
 
-    return login(user, password)
+    return login(user, password, browser)
 
 
 def download_dataset(competition, filename, folder='.', browser=None):
+    try_login = False
     if not browser:
-        browser = ui_login()
+        try_login = True
+        browser = Browser()
 
     # TODO: add more
     base = 'https://www.kaggle.com'
@@ -77,7 +81,7 @@ def download_dataset(competition, filename, folder='.', browser=None):
     for link in links:
         url = base + link
         if url.endswith('/' + filename):
-            return download_file(browser, url, folder)
+            return download_file(browser, url, folder, try_login)
     raise RuntimeError("Cannot found {0} for competition {1}".format(filename, competition))
 
 
@@ -101,7 +105,7 @@ def _is_downloadable(response):
     return True
 
 
-def download_file(browser, url, download_folder='.'):
+def download_file(browser, url, download_folder='.', try_login=True):
     local_filename = url.split('/')[-1]
     final_file = os.path.join(download_folder, local_filename)
     down_file = final_file + '.download'
@@ -111,16 +115,21 @@ def download_file(browser, url, download_folder='.'):
         return final_file
 
     print('downloading {}\n'.format(url))
-    headers = {}
-    file_size = 0
-    content_length = int(
-        browser.request('head', url).headers.get('Content-Length')
-    )
+    while True:
+        header_req = browser.request('head', url)
+        if '/account/login?' in header_req.url:
+            if try_login:
+                ui_login(browser)
+            else:
+                raise RuntimeError("Not login")
+    content_length = int(header_req.headers.get('Content-Length'))
 
     widgets = [local_filename, ' ', progressbar.Percentage(), ' ',
                progressbar.Bar(marker='#'), ' ',
                progressbar.ETA(), ' ', progressbar.FileTransferSpeed()]
 
+    headers = {}
+    file_size = 0
     if os.path.isfile(down_file):
         file_size = os.path.getsize(down_file)
         if file_size < content_length:
@@ -163,3 +172,13 @@ def download_file(browser, url, download_folder='.'):
     bar.finish()
 
     return final_file
+
+
+def download_extract(competition, filename, extract_root, download_dir='.',
+                     browser=None):
+    down_file = download_dataset(competition, filename, download_dir, browser)
+
+    extract_dir = os.path.join(extract_root, filename.split('.')[0])
+    extract_tmp = extract_dir + '_extract_tmp'
+
+    base.extract(filename, extract_tmp)
