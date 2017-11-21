@@ -12,14 +12,14 @@ def login(username, password, browser=None):
     pickle_path = os.path.join(default_dir('kaggle', 'cache'),
                                'browser.pickle')
 
-    if not browser and os.path.isfile(pickle_path):
-        with open(pickle_path, 'rb') as file:
-            data = pickle.load(file)
-            if data['username'] == username and \
-                    data['password'] == password:
-                return data['browser']
-    else:
-        os.makedirs(os.path.dirname(pickle_path), exist_ok=True)
+    # if not browser and os.path.isfile(pickle_path):
+    #     with open(pickle_path, 'rb') as file:
+    #         data = pickle.load(file)
+    #         if data['username'] == username and \
+    #                 data['password'] == password:
+    #             return data['browser']
+    # else:
+    #     os.makedirs(os.path.dirname(pickle_path), exist_ok=True)
 
     login_url = 'https://www.kaggle.com/account/login'
     if not browser:
@@ -50,10 +50,10 @@ def login(username, password, browser=None):
         error = error_match.group(1)
         raise RuntimeError('There was an error logging in: ' + error)
 
-    with open(pickle_path, 'wb') as f:
-        pickle.dump(dict(
-            username=username, password=password, browser=browser
-        ), f)
+    # with open(pickle_path, 'wb') as f:
+    #     pickle.dump(dict(
+    #         username=username, password=password, browser=browser
+    #     ), f)
 
     return browser
 
@@ -128,7 +128,9 @@ def download_file(browser, url, download_folder='.', try_login=True):
         return final_file
 
     print('downloading {}\n'.format(url))
-    while True:
+    retry = 3
+    while retry > 0:
+        retry -= 1
         header_req = browser.request('head', url)
         if '/account/login?' in header_req.url:
             if try_login:
