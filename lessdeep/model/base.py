@@ -14,7 +14,7 @@ def get_batches(path_dir, generator, shuffle=True, batch_size=8,
     if type(generator) is keras.preprocessing.image.ImageDataGenerator:
         batches = generator.flow_from_directory(directory=path_dir,
                                                 shuffle=shuffle,
-                                                batch_size=32,
+                                                batch_size=batch_size,
                                                 class_mode=class_mode,**kwargs)
         if batches.samples < batch_size:
             batches.batch_size = batches.samples  # keras raise error when batch_size is larger than total samples

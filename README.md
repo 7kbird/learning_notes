@@ -6,3 +6,4 @@ Notes for online course
 - Anaconda 4
 - Keras 2+
 - mechanicalsoup, progressbar2(installed by pip)
+- bcolz

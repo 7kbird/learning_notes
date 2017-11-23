@@ -137,7 +137,7 @@ class Vgg16(object):
             for layer in self.model.layers:
                 layer.trainable = False
 
-        self.model.add(Dense(batches.num_classes, activation='softmax'))
+        self.model.add(Dense(batches.num_class, activation='softmax'))
 
 
         self.compile(**kwargs)
