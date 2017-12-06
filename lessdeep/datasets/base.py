@@ -33,6 +33,7 @@ from glob import glob
 
 import numpy as np
 from six.moves import urllib
+import hashlib
 
 from tensorflow.python.platform import gfile
 
@@ -195,7 +196,16 @@ def urlretrieve_with_retry(url, filename=None):
     return urllib.request.urlretrieve(url, filename)
 
 
-def maybe_download(filename, work_directory, source_url, force=False):
+def hash_check(filepath, hash_alg, hash):
+    hash_obj = hashlib.__dict__[hash_alg]()
+    with open(filepath, 'rb') as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_obj.update(chunk)
+    return hash_obj.hexdigest().lower() == hash.lower()
+
+
+def maybe_download(filename, work_directory, source_url, force=False,
+                   hash_alg='', hash=''):
     """Download the data from source url, unless it's already here.
 
     Args:
@@ -203,17 +213,28 @@ def maybe_download(filename, work_directory, source_url, force=False):
         work_directory: string, path to working directory.
         source_url: url to download from if file doesn't exist.
         force: force download
-
+        hash_alg: algorithm of hash
+        hash: hash string
     Returns:
         Path to resulting file.
     """
     if not gfile.Exists(work_directory):
         gfile.MakeDirs(work_directory)
     filepath = os.path.join(work_directory, filename)
+
+    if gfile.Exists(filepath) and not force and hash_alg:
+        if not hash_check(filepath, hash_alg, hash):
+            force = True
+
     if not gfile.Exists(filepath) or force:
         print('Downloading', source_url)
-        temp_file_name, _ = urlretrieve_with_retry(source_url)
-        gfile.Copy(temp_file_name, filepath)
+        temp_filename = os.path.join(work_directory,
+                                     source_url.split('/')[-1] + '.downtmp')
+        temp_file_name, _ = urlretrieve_with_retry(source_url, temp_filename)
+        if hash_alg:
+            if not hash_check(temp_file_name, hash_alg, hash):
+                raise "Downloaded hash not match"
+        gfile.Rename(temp_file_name, filepath, overwrite=True)
         with gfile.GFile(filepath) as f:
             size = f.size()
         print('Successfully downloaded', filename, size, 'bytes.')
@@ -224,13 +245,7 @@ def extract(filename, data_root, remove_single=True):
     print('Extracting data for %s. This may take a while. Please wait.' % data_root)
     shutil.rmtree(data_root, ignore_errors=True)
 
-    def get_extract_tmp():
-        retry_cnt = 0
-        while os.path.exists(data_root + '_extract_unfinish_%d' % retry_cnt):
-            retry_cnt += 1
-        return data_root + '_extract_unfinish_%d' % retry_cnt
-
-    extract_tmp = get_extract_tmp()
+    extract_tmp = os.path.join(data_root + '_extract_unfinished')
 
     if tarfile.is_tarfile(filename):
         tar = tarfile.open(filename)
