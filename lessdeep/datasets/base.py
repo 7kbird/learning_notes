@@ -248,7 +248,7 @@ def extract(filename, data_root, remove_single=True):
     extract_tmp = os.path.join(data_root + '_extract_unfinished')
 
     if tarfile.is_tarfile(filename):
-        tar = tarfile.open(filename)
+        tar = tarfile.open(filename, bufsize=1024*1024*20)
         sys.stdout.flush()
         tar.extractall(extract_tmp)
         tar.close()
@@ -261,6 +261,7 @@ def extract(filename, data_root, remove_single=True):
 
     if remove_single and len(os.listdir(extract_tmp)) == 1:
         sub_dir_name = os.listdir(extract_tmp)[0]
+        os.chmod(extract_tmp, 0o777)
         os.rename(os.path.join(extract_tmp, sub_dir_name), data_root)
         os.rmdir(extract_tmp)
     else:
