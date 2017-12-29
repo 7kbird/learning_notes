@@ -22,3 +22,33 @@ def load_array(file_path):
         file_path = os.path.join(cache_dir('array'), file_path)
     # Open and uncompress
     return bcolz.open(file_path)[:]
+
+
+def tf_board(prefix='', **kwargs):
+    from keras.callbacks import TensorBoard
+    from datetime import datetime
+    if prefix:
+        prefix += '_'
+    prefix += datetime.now().strftime("%Y%m%d%H%M%S")
+
+    log_root = cache_dir('tensorboard_logs')
+    log_dir = os.path.join(log_root, prefix)
+    rename_idx = 0
+    while os.path.exists(log_dir):
+        log_dir = os.path.join(log_root, prefix + '_' + str(rename_idx))
+        rename_idx += 1
+
+    options = {
+        'log_dir': log_dir,
+        # 'histogram_freq': 0,
+        # 'batch_size': 32,
+        # 'write_graph': True,
+        # 'write_grads': False,
+        # 'write_images': False,
+        # 'embeddings_freq': 0,
+        # 'embeddings_layer_names': None,
+        # 'embeddings_metadata': None
+    }
+    options.update(kwargs)
+
+    return TensorBoard(**options)

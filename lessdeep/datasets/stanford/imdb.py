@@ -47,17 +47,20 @@ def _clean_str(s):
     s = re.sub(r" (\d+)(s|th)", r" \1 \2 ", s)  # 100th 1970s
 
     # remove plural
-    s = re.sub(r'\s([A-Za-z]+[sxz]|[A-Za-z]+[^aeioudgkprt]h)es\s', r" \1 s ", s)
-    s = re.sub(r'\s([A-Za-z]+[^aeiou])ies\s', r" \1y s ", s)
-    s = re.sub(r'([A-Za-z]{2,}[^aeious])s\s', r"\1 s ", s)
+    s = re.sub(r'\s([A-Za-z]+x|[A-Za-z]+[^aeioudgkprstv]h)es(\s|$)',
+               r" \1 s ", s)
+    #s = re.sub(r'\s([A-Za-z]+[^aeiou])ies\s', r" \1y s ", s)
+    #s = re.sub(r'([A-Za-z]{2,}[^aeious])s\s', r"\1 s ", s)
+    # TODO: zombies,
 
     # remove ed
-    s = re.sub(r'([A-Za-z]{2,}[i])ed\s', r"\1y ed ", s)
-    s = re.sub(r"([A-Za-z]{2,})([gmnpr]){2}ed\s", r"\1\2 ed ", s)
-    s = re.sub(r'([A-Za-z]{2,}[cgsvr]e)d\s', r"\1 ed ", s)
-    s = re.sub(r'([A-Za-z]{2,}[htnpx])ed\s', r"\1 ed ", s)
+    #s = re.sub(r'([A-Za-z]{2,}[i])ed\s', r"\1y ed ", s)
+    #s = re.sub(r"([A-Za-z]{2,})([gmnpr]){2}ed\s", r"\1\2 ed ", s)
+    #s = re.sub(r'([A-Za-z]{2,}[cgsvr]e)d\s', r"\1 ed ", s)
+    #s = re.sub(r'([A-Za-z]{2,}[hnpx])ed\s', r"\1 ed ", s)
 
     # TODO: settled, filled, homed, armed, liked, asked, wanted, united, unwed
+    #       animated
 
     # clear blanks
     s = re.sub(r"\s{2,}", " ", s)

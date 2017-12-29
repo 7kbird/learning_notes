@@ -104,3 +104,4 @@ _data/
 lessdeep/model/_cache/
 _model/
 **/_cache/
+_vec/
