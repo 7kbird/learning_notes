@@ -52,3 +52,14 @@ def tf_board(prefix='', **kwargs):
     options.update(kwargs)
 
     return TensorBoard(**options)
+
+
+def download_file(source_url, file_name='', force=False, hash_alg='', hash=''):
+    if not file_name:
+        file_name = source_url.split('/')[-1]
+    assert file_name
+
+    from lessdeep.datasets.base import maybe_download
+
+    return maybe_download(file_name, cache_dir('download'), source_url, force,
+                          hash_alg, hash)

@@ -194,4 +194,7 @@ def download_extract(competition, filename, extract_root, download_dir='.',
     down_file = download_dataset(competition, filename, download_dir, browser)
 
     extract_dir = os.path.join(extract_root, filename.split('.')[0])
-    base.extract(down_file, extract_dir)
+    if not os.path.exists(extract_dir):
+        base.extract(down_file, extract_dir)
+    else:
+        print('Already extracted: ' + filename)
