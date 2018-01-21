@@ -127,6 +127,10 @@ def download_file(browser, url, download_folder='.', try_login=True):
         print('{} already downloaded !'.format(final_file))
         return final_file
 
+    # Make path first so one can manually copy file from other place when
+    # network is slow
+    os.makedirs(download_folder, exist_ok=True)
+
     print('downloading {}\n'.format(url))
     retry = 3
     while retry > 0:
