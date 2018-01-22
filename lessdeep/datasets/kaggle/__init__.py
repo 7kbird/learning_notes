@@ -1,5 +1,6 @@
 import yaml
 import os
+import sys
 import shutil
 from mechanicalsoup import Browser
 from sklearn.model_selection import train_test_split
@@ -155,19 +156,23 @@ def get_train(competition_id, validation=0.0, cache_dir=None):
         if not os.path.exists(valid_dir):
             print('Splitting validation dataset')
             with _MoveAfterWork(valid_dir) as tmp_dir:
+                sys.stdout.flush()
                 bar = ProgressBar()
                 for rel_path in bar(valid_files):
                     tgt = os.path.join(tmp_dir, rel_path)
                     os.makedirs(os.path.dirname(tgt), exist_ok=True)
                     shutil.move(os.path.join(src_dir, rel_path), tgt)
+                sys.stdout.flush()
         if not os.path.exists(train_dir):
             print('Splitting training dataset')
             with _MoveAfterWork(train_dir) as tmp_dir:
+                sys.stdout.flush()
                 bar = ProgressBar()
                 for rel_path in bar(train_files):
                     tgt = os.path.join(tmp_dir, rel_path)
                     os.makedirs(os.path.dirname(tgt), exist_ok=True)
                     shutil.move(os.path.join(src_dir, rel_path), tgt)
+                sys.stdout.flush()
 
     # TODO: add sample
 

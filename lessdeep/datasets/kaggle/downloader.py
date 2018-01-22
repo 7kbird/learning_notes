@@ -187,6 +187,8 @@ def download_file(browser, url, download_folder='.', try_login=True):
                 f.write(chunk)
                 finished_bytes += len(chunk)
                 bar.update(finished_bytes)
+    if finished_bytes != content_length:
+        raise RuntimeError("Downloaded file not finished")
     os.rename(down_file, final_file)
     bar.finish()
 
