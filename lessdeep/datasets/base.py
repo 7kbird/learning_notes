@@ -268,6 +268,23 @@ def extract(filename, data_root, remove_single=True):
         os.rename(extract_tmp, data_root)
 
 
+def extract_members(filename, remove_single=True):
+    # TODO: remove single
+    if tarfile.is_tarfile(filename):
+        tar = tarfile.open(filename, bufsize=1024*1024*20)
+        file_list = tar.getnames()
+        tar.close()
+    elif zipfile.is_zipfile(filename):
+        zf = zipfile.ZipFile(filename, 'r')
+        file_list = zf.namelist()
+        zf.close()
+    else:
+        raise NotImplementedError(
+            'File type is not supported for extraction: %s' % filename)
+
+    return file_list
+
+
 class FileStamp(object):
     def __init__(self, root_dir):
         self.root = root_dir

@@ -63,3 +63,36 @@ def download_file(source_url, file_name='', force=False, hash_alg='', hash=''):
 
     return maybe_download(file_name, cache_dir('download'), source_url, force,
                           hash_alg, hash)
+
+
+def clone_model(model, **kwargs):
+    '''
+
+    :param model:
+    :param kwargs: attribute for all layers such as trainable
+    :return:
+    '''
+    import keras
+    if hasattr(model, 'layers'):
+        assert isinstance(model, keras.Sequential)
+        layers = model.layers
+    else:
+        layers = model
+
+    def clone_layer(l):
+        conf = l.get_config()
+        conf.pop('name')
+        if l == layers[0]:
+            conf['input_shape'] = l.input_shape[1:]
+        new_layer = type(l).from_config(conf)
+
+        return new_layer
+
+    # TODO: support more than sequential
+    new_model = keras.Sequential([clone_layer(l) for l in layers])
+    for layer, src_layer in zip(new_model.layers, layers):
+        layer.set_weights(src_layer.get_weights())
+        for key, val in kwargs.items():
+            setattr(layer, key, val)
+
+    return new_model

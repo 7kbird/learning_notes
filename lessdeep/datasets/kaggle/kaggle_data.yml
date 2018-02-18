@@ -1,15 +1,19 @@
 dogs-vs-cats:
   train: train.zip
   test: test1.zip
+  categories:
+    re: '(\w+)\.\d+.jpg'
 
 the-nature-conservancy-fisheries-monitoring:
   train:
     file: train.zip
     root: /train
   test:
-    - test_stg1.zip
-    - test_stg2.zip
+    file:
+      - test_stg1.zip
+      - test_stg2.zip
 
 mercari-price-suggestion-challenge:
   train: train.tsv.7z
   test: test.tsv.7z
+  categories: folder
