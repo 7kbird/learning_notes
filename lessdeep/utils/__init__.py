@@ -82,7 +82,7 @@ def clone_model(model, **kwargs):
     def clone_layer(l):
         conf = l.get_config()
         conf.pop('name')
-        if l == layers[0]:
+        if l == layers[0] and type(l) != keras.layers.InputLayer:
             conf['input_shape'] = l.input_shape[1:]
         new_layer = type(l).from_config(conf)
 

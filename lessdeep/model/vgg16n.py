@@ -19,7 +19,7 @@ class Vgg16N(object):
     vgg_mean = np.array([123.68, 116.779, 103.939])
 
     def __init__(self, include_top=True, dropout=None, batch_norm=False,
-                 image_size=(224, 224), pooling=None, **kwargs):
+                 image_size=None, pooling=None, **kwargs):
         """
 
         :param include_top:
@@ -30,11 +30,14 @@ class Vgg16N(object):
         """
         if batch_norm and dropout is not None:
             raise ValueError('If use `batchnorm` as true, `dropout` should be '
-                             '0.0')
-        if K.image_data_format() == 'channels_first':
-            input_shape = (3, ) + tuple(image_size)
+                             'None')
+        if image_size:
+            if K.image_data_format() == 'channels_first':
+                input_shape = (3, ) + tuple(image_size)
+            else:
+                input_shape = tuple(image_size) + (3, )
         else:
-            input_shape = tuple(image_size) + (3, )
+            input_shape = None
         model = keras.applications.VGG16(include_top, input_shape=input_shape,
                                          pooling=pooling, **kwargs)
         if batch_norm:
@@ -208,7 +211,13 @@ class Vgg16N(object):
         else:
             raise ValueError("Model cannot determine output dtype size:" + \
                              str(self.model.output.dtype))
-        batch_bytes = np.prod(self.model.output.shape.as_list()[1:]) * \
+        outshape = self.model.output.shape.as_list()[1:]
+        if None in outshape:
+            tmp_x, _ = batches.next()
+            model = keras.Sequential([keras.layers.InputLayer(tmp_x.shape[1:])] + \
+                                     self.model.layers[1:])
+            outshape = list(model.output_shape)[1:]
+        batch_bytes = np.prod(outshape) * \
             batches.batch_size * itemsize
         # use 512M per step to prevent little garbage collect
         max_step_bytes = 512 * 1024 * 1024
