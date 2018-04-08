@@ -65,6 +65,16 @@ def download_file(source_url, file_name='', force=False, hash_alg='', hash=''):
                           hash_alg, hash)
 
 
+def extract_file(file_path):
+    from lessdeep.datasets.base import extract
+
+    extract_dir = os.path.join(cache_dir('extract'), os.path.basename(file_path))
+    if not os.path.exists(extract_dir):
+        extract(file_path, extract_dir)
+
+    return extract_dir
+
+
 def clone_model(model, **kwargs):
     '''
 

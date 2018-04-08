@@ -68,7 +68,7 @@ class Vgg16N(object):
             # down sampling
             model.layers.pop()
 
-        self.model = keras.models.Sequential(model.layers)
+        self.model = clone_model(model.layers)
         self.classes = kwargs.get('classes', [])
 
     def get_batches(self, path_dir, batch_size, generator=None, shuffle=True,

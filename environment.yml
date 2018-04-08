@@ -1,0 +1,13 @@
+#name: lessdeep
+channels:
+  - defaults
+dependencies:
+  - jupyter
+  - matplotlib
+  - ipywidgets
+  - numpy
+  - scipy
+  - pandas
+  - pip:
+    - tdqm
+    - keras-tqdm
