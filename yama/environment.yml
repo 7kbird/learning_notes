@@ -1,10 +1,7 @@
-#name: lessdeep
+name: yama
 channels:
   - defaults
 dependencies:
-  - jupyter
-  - matplotlib
-  - ipywidgets
   - numpy
   - scipy
   - pandas
