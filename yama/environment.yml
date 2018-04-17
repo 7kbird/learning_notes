@@ -1,10 +1,20 @@
 name: yama
 channels:
   - defaults
+  - peterjc123  # for pytorch on windows
 dependencies:
+  - bcolz
+  - jupyter
+  - notebook
+  - matplotlib
   - numpy
   - scipy
+  - pillow
   - pandas
+  - pytorch
+  - python >= 3.6.0
   - pip:
-    - tqdm
+    - ipywidgets
     - keras-tqdm
+    - tqdm
+    - torchvision
