@@ -10,3 +10,7 @@ class _Config(object):
 
 
 config = _Config()
+import torch
+torch.autograd.Variable().zero_()
+import torchvision
+torchvision.datasets.LSUN

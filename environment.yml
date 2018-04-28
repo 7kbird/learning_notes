@@ -10,6 +10,7 @@ dependencies:
   - scipy
   - pandas
   - pytorch
+  - python-lmdb
   - pip:
     - tqdm
     - keras-tqdm
