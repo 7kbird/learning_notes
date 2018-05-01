@@ -1,7 +1,7 @@
 #name: lessdeep
 channels:
   - defaults
-  - peterjc123  # for pytorch on windows
+  - pytorch
 dependencies:
   - jupyter
   - matplotlib

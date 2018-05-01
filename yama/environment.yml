@@ -1,7 +1,7 @@
-name: yama
+#name: yama
 channels:
   - defaults
-  - peterjc123  # for pytorch on windows
+  - pytorch
 dependencies:
   - bcolz
   - jupyter
