@@ -28,7 +28,6 @@ class _PartWorker(object):
         self.pool = None
 
     def __enter__(self):
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         self.pool = urllib3.connection_from_url(self.url)
         return self
 
@@ -42,7 +41,11 @@ class _PartWorker(object):
                     self.start + (index + 1) * self.block_size - 1)
 
         headers = {'Range': 'bytes={}-{}'.format(r_start, r_end)}
-        r = self.pool.request('GET', self.url, headers=headers)
+
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            r = self.pool.request('GET', self.url, headers=headers)
         assert len(r.data) == r_end - r_start + 1
 
         return r.data, index
@@ -84,8 +87,9 @@ def _remove_stamp(stamp_path):
             os.remove(f)
 
 
-def _download_multi_thread(url, file_path, stamp_path, force, file_size, threads):
-    block_size = 1024 * 1024   # 1M
+def _download_multi_thread(url, file_path, stamp_path, force, file_size,
+                           threads):
+    block_size = 512 * 1024   # 512K
 
     file_mode = 'wb'
     if os.path.exists(file_path):
@@ -102,14 +106,14 @@ def _download_multi_thread(url, file_path, stamp_path, force, file_size, threads
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from yama.util import tqdm
     with open(file_path, file_mode) as out, \
-            _PartWorker(url, start_pos, block_size, file_size) as worker, \
-            ThreadPoolExecutor(max_workers=threads) as pool:
+            ThreadPoolExecutor(max_workers=threads) as pool, \
+            _PartWorker(url, start_pos, block_size, file_size) as worker:
         # Pre-allocate file disk space
         out.truncate(file_size)
         out.flush()
 
         bar_dic = dict(total=file_size, initial=start_pos,
-                       unit='MB', unit_scale=True,
+                       unit='B', unit_scale=True,
                        postfix={'file': os.path.basename(file_path)})
         pending_futures = [pool.submit(worker, i) for i in range(block_num)]
         dirty_index = []
@@ -128,7 +132,8 @@ def _download_multi_thread(url, file_path, stamp_path, force, file_size, threads
                     while len(dirty_index) > 0 \
                             and dirty_index[0] == next_sync_idx:
                         next_sync_idx = dirty_index.pop(0) + 1
-                    _write_stamp(stamp_path, start_pos + next_sync_idx * block_size)
+                    _write_stamp(stamp_path,
+                                 start_pos + next_sync_idx * block_size)
 
 
 class HeadRequest(urllib.request.Request):

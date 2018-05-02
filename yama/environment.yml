@@ -12,9 +12,11 @@ dependencies:
   - pillow
   - pandas
   - pytorch
-  - python >= 3.6.0
+  - python >= 3.5.0
+#  - futures  # for python 2.7
   - pip:
     - ipywidgets
     - keras-tqdm
     - tqdm
     - torchvision
+    - urllib3

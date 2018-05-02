@@ -22,10 +22,15 @@ class FileServerThread(Thread):
     def run(self):
         os.chdir(self.root)
         ThreadingHTTPServer.allow_reuse_address = True
-        with ThreadingHTTPServer(("127.0.0.1", self.port), self.handler) as httpd:
+
+        httpd = ThreadingHTTPServer(("127.0.0.1", self.port), self.handler)
+        try:
             self.server = httpd
             #print("serving at port", self.port)
             httpd.serve_forever()
+        finally:
+            httpd.shutdown()
+            httpd.server_close()
 
 
 class TestDownloadUrl(TestCase):
