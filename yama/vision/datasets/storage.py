@@ -1,5 +1,6 @@
 import os
 
+
 class Storage(object):
     """An abstract class represent an image storage
 
