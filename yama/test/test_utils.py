@@ -2,8 +2,9 @@ import unittest
 from unittest import TestCase
 import tempfile
 import os
+import warnings
 import shutil
-from yama.util.data import download_url
+from yama.util.data import download_url, extract_file
 from threading import Thread
 from http.server import SimpleHTTPRequestHandler
 from rangeserver import RangeRequestHandler, ThreadingHTTPServer
@@ -107,6 +108,46 @@ class TestDownloadUrl(TestCase):
                                   md5=self.file_md5)
         self.assertTrue(os.path.exists(file))
         # TODO: check download size is less than total
+
+
+class TestExtract(unittest.TestCase):
+    src_dir = ''
+
+    @classmethod
+    def setUpClass(cls):
+        cls.src_dir = tempfile.mkdtemp()
+        files = ['root{}'.format(i) for i in range(100)] + \
+                ['root_dir{}/ch{}'.format(i, j) for j in range(10) for i in range(10)]
+        buff = os.urandom(1024*1024)
+        for name in files:
+            os.makedirs(os.path.dirname(os.path.join(cls.src_dir, name)), exist_ok=True)
+            with open(os.path.join(cls.src_dir, name), 'wb') as f:
+                f.write(buff)
+
+    @classmethod
+    def tearDownClass(cls):
+        if cls.src_dir:
+            shutil.rmtree(cls.src_dir, ignore_errors=True)
+
+    def setUp(self):
+        self.work_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.work_dir, ignore_errors=True)
+
+    def test_extract_zip(self):
+        zip_path = os.path.join(self.work_dir, 'archive')
+        shutil.make_archive(zip_path, 'zip', self.src_dir)
+        zip_path += '.zip'
+        extract_dir = os.path.join(self.work_dir, 'ext')
+        extract_file(zip_path, extract_dir)
+
+        from filecmp import dircmp
+        diff = dircmp(extract_dir, self.src_dir)
+        self.assertEqual(0, len(diff.diff_files))
+
+    def test_remove_one(self):
+        self.assertEqual(0, len(diff.diff_files))
 
 
 if __name__ == '__main__':

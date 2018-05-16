@@ -4,6 +4,7 @@ import tarfile
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
 import tempfile
+import shutil
 
 
 class MultiprocessExtractor(object):
@@ -94,3 +95,11 @@ def extract_file(file_path, extract_dir, remove_one=True, progressbar=True,
             complete_num = future.result()
             if progressbar:
                 bar.update(complete_num)
+
+    if remove_one:
+        root_files = os.listdir(extract_tmp)
+        if len(root_files) == 1:
+            shutil.move(os.path.join(extract_tmp, root_files[0]), extract_dir)
+            shutil.rmtree(extract_tmp, ignore_errors=True)
+            return
+    shutil.move(extract_tmp, extract_dir)

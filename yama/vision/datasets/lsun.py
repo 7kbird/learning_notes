@@ -5,6 +5,7 @@ import shutil
 from yama.util.data import download_url, extract_file
 from yama.vision.datasets.storage import Storage
 
+
 def download_lsun(out_dir, set_name, category='', tag='latest'):
     """
     Args:
@@ -104,7 +105,7 @@ class LSUN(torch.utils.data.Dataset):
         self.dbs = []
         for c, root in class_roots:
             self.dbs.append(torchvision.datasets.lsun.LSUNClass(
-                db_path=os.path.join(root, c + '_lmdb'),
+                os.path.join(root, c + '_lmdb'),
                 transform=transform))
 
         self.indices = []

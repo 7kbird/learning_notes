@@ -7,14 +7,12 @@ class Storage(object):
     All image storage should subclass it. All subclasses should override
     ``root``, that provide the storage path for the source
     """
-    def __init__(self):
-        pass
 
     def root(self, source_name):
         raise NotImplementedError()
 
 
-class PaperSpaceGradientStrage(Storage):
+class PaperSpaceGradientStorage(Storage):
     """Image storage for Paperespage Gradient Storage
 
     Paperespage Gradient provide a default readonly directory which contains
