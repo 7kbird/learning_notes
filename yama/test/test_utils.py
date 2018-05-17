@@ -147,6 +147,21 @@ class TestExtract(unittest.TestCase):
         self.assertEqual(0, len(diff.diff_files))
 
     def test_remove_one(self):
+        one_root = os.path.join(self.work_dir, 'one')
+        os.mkdir(one_root)
+        shutil.copytree(self.src_dir, os.path.join(one_root, 'sub'))
+        self.assertEqual(1, len(os.listdir(one_root)))
+        self.assertGreater(len(os.listdir(os.path.join(one_root, 'sub'))), 1)
+
+        zip_path = os.path.join(self.work_dir, 'archive')
+        shutil.make_archive(zip_path, 'zip', one_root)
+        zip_path += '.zip'
+
+        extract_dir = os.path.join(self.work_dir, 'ext1')
+        extract_file(zip_path, extract_dir, remove_one=True)
+
+        from filecmp import dircmp
+        diff = dircmp(extract_dir, self.src_dir)
         self.assertEqual(0, len(diff.diff_files))
 
 

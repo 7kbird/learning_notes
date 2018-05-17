@@ -60,6 +60,10 @@ def extract_file(file_path, extract_dir, remove_one=True, progressbar=True,
     Please check if ``extract_dir`` already exist. This extract will
     merege all extract file into target folder if already exist
     """
+    if not os.path.exists(file_path):
+        raise RuntimeError('File {} not found'.format(file_path))
+    elif not os.path.isfile(file_path):
+        raise RuntimeError('{} is not a file'.format(file_path))
 
     # Prepare extractor
     if extractor:
@@ -90,7 +94,7 @@ def extract_file(file_path, extract_dir, remove_one=True, progressbar=True,
         if progressbar:
             from yama.util import tqdm
             bar = tqdm(total=len(all_members), unit='',
-                       postfix={'extract': ex_base})
+                       postfix={'extract': os.path.basename(file_path)})
         for future in as_completed(futures):
             complete_num = future.result()
             if progressbar:
