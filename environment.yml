@@ -14,4 +14,7 @@ dependencies:
   - pip:
     - tqdm
     - keras-tqdm
+    - pandas-summary
     - torchvision
+    - sklearn
+    - sklearn-pandas
